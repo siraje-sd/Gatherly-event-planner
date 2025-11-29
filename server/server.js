@@ -24,10 +24,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 
-// Database connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/eventplanner', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -35,7 +33,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/eventplan
 .then(() => console.log('MongoDB connected'))
 .catch(err => console.error('MongoDB connection error:', err));
 
-// Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
@@ -54,17 +51,14 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io available to routes
 app.set('io', io);
 
-// Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/invitations', require('./routes/invitations'));
 app.use('/api/rsvps', require('./routes/rsvps'));
 app.use('/api/collaborations', require('./routes/collaborations'));
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });

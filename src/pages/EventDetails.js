@@ -15,41 +15,43 @@ const EventDetails = () => {
   const [event, setEvent] = useState(null);
   const [rsvps, setRsvps] = useState([]);
   const [rsvpCounts, setRsvpCounts] = useState({ yes: 0, no: 0, maybe: 0, total: 0 });
-  const [myRSVP, setMyRSVP] = useState(null);
   const [invitations, setInvitations] = useState([]);
   const [collaborations, setCollaborations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('details');
   const [rsvpStatus, setRsvpStatus] = useState('');
   const [rsvpComment, setRsvpComment] = useState('');
   const [rsvpGuests, setRsvpGuests] = useState(1);
 
   useSocket(id, {
-    onRSVPUpdate: (data) => {
+    onRSVPUpdate: () => {
       loadRSVPs();
-      if (data.user._id === user?.id) {
-        setMyRSVP(data);
-      }
     },
     onRSVPDeleted: () => {
       loadRSVPs();
-      setMyRSVP(null);
     },
   });
 
   useEffect(() => {
-    loadEvent();
-    loadRSVPs();
-    loadInvitations();
-    loadCollaborations();
+    const fetchData = async () => {
+      await Promise.all([
+        loadEvent(),
+        loadRSVPs(),
+        loadInvitations(),
+        loadCollaborations()
+      ]);
+    };
+    fetchData();
   }, [id]);
 
   const loadEvent = async () => {
     try {
+      setError('');
       const data = await eventService.getEvent(id);
       setEvent(data.event);
     } catch (err) {
-      console.error('Failed to load event:', err);
+      setError(err.response?.data?.message || 'Failed to load event');
     } finally {
       setLoading(false);
     }
@@ -63,13 +65,11 @@ const EventDetails = () => {
       
       const myRSVPData = await rsvpService.getMyRSVP(id);
       if (myRSVPData.rsvp) {
-        setMyRSVP(myRSVPData.rsvp);
         setRsvpStatus(myRSVPData.rsvp.status);
         setRsvpComment(myRSVPData.rsvp.comment || '');
         setRsvpGuests(myRSVPData.rsvp.guests || 1);
       }
     } catch (err) {
-      console.error('Failed to load RSVPs:', err);
     }
   };
 
@@ -78,7 +78,6 @@ const EventDetails = () => {
       const data = await invitationService.getEventInvitations(id);
       setInvitations(data.invitations || []);
     } catch (err) {
-      console.error('Failed to load invitations:', err);
     }
   };
 
@@ -87,12 +86,12 @@ const EventDetails = () => {
       const data = await collaborationService.getEventCollaborations(id);
       setCollaborations(data.collaborations || []);
     } catch (err) {
-      console.error('Failed to load collaborations:', err);
     }
   };
 
   const handleRSVP = async (status) => {
     try {
+      setError('');
       await rsvpService.createOrUpdateRSVP({
         eventId: id,
         status,
@@ -102,17 +101,18 @@ const EventDetails = () => {
       setRsvpStatus(status);
       await loadRSVPs();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update RSVP');
+      setError(err.response?.data?.message || 'Failed to update RSVP');
     }
   };
 
   const handleDeleteEvent = async () => {
     if (window.confirm('Are you sure you want to delete this event? This action cannot be undone and all associated data will be permanently removed.')) {
       try {
+        setError('');
         await eventService.deleteEvent(id);
         navigate('/dashboard');
       } catch (err) {
-        alert(err.response?.data?.message || 'Failed to delete event. Please try again.');
+        setError(err.response?.data?.message || 'Failed to delete event. Please try again.');
       }
     }
   };
@@ -128,10 +128,11 @@ const EventDetails = () => {
     );
   }
 
-  if (!event) {
+  if (!event && !loading) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Event not found</h2>
+        <p className="text-red-600 mb-4">{error || 'The event you are looking for does not exist or you do not have access to it.'}</p>
         <Link to="/dashboard" className="text-primary-600 hover:text-primary-700">
           Back to Dashboard
         </Link>
@@ -148,17 +149,17 @@ const EventDetails = () => {
           </div>
         )}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{event.title}</h1>
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{event.title}</h1>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600">
                 <span>📅 {new Date(event.startDate).toLocaleDateString()}</span>
                 {event.location && <span>📍 {event.location}</span>}
                 <span className="px-2 py-1 bg-primary-100 text-primary-800 rounded">{event.category}</span>
               </div>
             </div>
             {isOwner && (
-              <div className="flex space-x-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <Link
                   to={`/events/${id}/edit`}
                   className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 font-semibold shadow-md hover:shadow-lg transition-all"
@@ -178,7 +179,12 @@ const EventDetails = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex space-x-4 mb-6 border-b">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+        <div className="flex space-x-4 mb-6 border-b overflow-x-auto">
           {['details', 'rsvps', 'invitations', 'collaborators'].map((tab) => (
             <button
               key={tab}
@@ -215,10 +221,10 @@ const EventDetails = () => {
               <div className="mt-8 border-t pt-6">
                 <h3 className="text-xl font-semibold mb-4">Will you be attending?</h3>
                 <div className="space-y-4">
-                  <div className="flex space-x-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       onClick={() => handleRSVP('yes')}
-                      className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                      className={`px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${
                         rsvpStatus === 'yes' ? 'bg-green-600 text-white shadow-lg' : 'bg-green-100 text-green-700 hover:bg-green-200'
                       }`}
                     >
@@ -226,7 +232,7 @@ const EventDetails = () => {
                     </button>
                     <button
                       onClick={() => handleRSVP('maybe')}
-                      className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                      className={`px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${
                         rsvpStatus === 'maybe' ? 'bg-yellow-600 text-white shadow-lg' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                       }`}
                     >
@@ -234,7 +240,7 @@ const EventDetails = () => {
                     </button>
                     <button
                       onClick={() => handleRSVP('no')}
-                      className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                      className={`px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${
                         rsvpStatus === 'no' ? 'bg-red-600 text-white shadow-lg' : 'bg-red-100 text-red-700 hover:bg-red-200'
                       }`}
                     >
@@ -291,7 +297,7 @@ const EventDetails = () => {
         {activeTab === 'rsvps' && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-2xl font-bold mb-4">Guest Responses</h2>
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                 <div className="text-2xl font-bold text-green-700">{rsvpCounts.yes}</div>
                 <div className="text-sm text-green-600 font-medium">Attending</div>
@@ -354,19 +360,21 @@ const EventDetails = () => {
   );
 };
 
-// Invitation Manager Component
 const InvitationManager = ({ eventId, invitations, onUpdate }) => {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [inviteError, setInviteError] = useState('');
+
   const handleInvite = async () => {
     if (!email && !username) {
-      alert('Please provide an email address or username');
+      setInviteError('Please provide an email address or username');
       return;
     }
     try {
       setLoading(true);
+      setInviteError('');
       await invitationService.createInvitation({
         eventId,
         inviteeEmail: email,
@@ -376,7 +384,7 @@ const InvitationManager = ({ eventId, invitations, onUpdate }) => {
       setUsername('');
       onUpdate();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to send invitation. Please try again.');
+      setInviteError(err.response?.data?.message || 'Failed to send invitation. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -384,8 +392,13 @@ const InvitationManager = ({ eventId, invitations, onUpdate }) => {
 
   return (
     <div>
+      {inviteError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          {inviteError}
+        </div>
+      )}
       <div className="mb-4 space-y-3">
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <input
             type="email"
             value={email}
@@ -394,7 +407,7 @@ const InvitationManager = ({ eventId, invitations, onUpdate }) => {
             className="border rounded-lg px-4 py-3 flex-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
             aria-label="Invitee email address"
           />
-          <span className="self-center text-gray-500">or</span>
+          <span className="self-center text-gray-500 hidden sm:inline">or</span>
           <input
             type="text"
             value={username}
@@ -442,24 +455,26 @@ const InvitationManager = ({ eventId, invitations, onUpdate }) => {
   );
 };
 
-// Collaboration Manager Component
 const CollaborationManager = ({ eventId, collaborations, onUpdate }) => {
   const [userId, setUserId] = useState('');
   const [role, setRole] = useState('viewer');
   const [loading, setLoading] = useState(false);
 
+  const [collabError, setCollabError] = useState('');
+
   const handleAdd = async () => {
     if (!userId) {
-      alert('Please provide a user ID or username');
+      setCollabError('Please provide a user ID or username');
       return;
     }
     try {
       setLoading(true);
+      setCollabError('');
       await collaborationService.addCollaborator({ eventId, userId, role });
       setUserId('');
       onUpdate();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add collaborator. Please try again.');
+      setCollabError(err.response?.data?.message || 'Failed to add collaborator. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -467,8 +482,13 @@ const CollaborationManager = ({ eventId, collaborations, onUpdate }) => {
 
   return (
     <div>
+      {collabError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          {collabError}
+        </div>
+      )}
       <div className="mb-4 space-y-3">
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <input
             type="text"
             value={userId}
@@ -480,7 +500,7 @@ const CollaborationManager = ({ eventId, collaborations, onUpdate }) => {
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 sm:w-auto w-full"
             aria-label="Collaborator role"
           >
             <option value="viewer">Viewer</option>

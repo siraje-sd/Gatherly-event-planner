@@ -5,54 +5,70 @@ const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
 
 export const useSocket = (eventId, callbacks = {}) => {
   const socketRef = useRef(null);
+  const callbacksRef = useRef(callbacks);
 
   useEffect(() => {
-    // Initialize socket connection
+    callbacksRef.current = callbacks;
+  }, [callbacks]);
+
+  useEffect(() => {
     socketRef.current = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
     });
 
     const socket = socketRef.current;
 
-    // Join event room
     if (eventId) {
       socket.emit('join-event', eventId);
     }
+    const handleRSVPUpdate = (data) => {
+      if (callbacksRef.current.onRSVPUpdate) {
+        callbacksRef.current.onRSVPUpdate(data);
+      }
+    };
 
-    // Set up event listeners
-    if (callbacks.onRSVPUpdate) {
-      socket.on('rsvp-updated', callbacks.onRSVPUpdate);
-    }
+    const handleRSVPDeleted = (data) => {
+      if (callbacksRef.current.onRSVPDeleted) {
+        callbacksRef.current.onRSVPDeleted(data);
+      }
+    };
 
-    if (callbacks.onRSVPDeleted) {
-      socket.on('rsvp-deleted', callbacks.onRSVPDeleted);
-    }
+    const handleInvitationUpdate = (data) => {
+      if (callbacksRef.current.onInvitationUpdate) {
+        callbacksRef.current.onInvitationUpdate(data);
+      }
+    };
 
-    if (callbacks.onInvitationUpdate) {
-      socket.on('invitation-updated', callbacks.onInvitationUpdate);
-    }
+    const handleCollaborationUpdate = (data) => {
+      if (callbacksRef.current.onCollaborationUpdate) {
+        callbacksRef.current.onCollaborationUpdate(data);
+      }
+    };
 
-    if (callbacks.onCollaborationUpdate) {
-      socket.on('collaboration-updated', callbacks.onCollaborationUpdate);
-    }
+    const handleNewInvitation = (data) => {
+      if (callbacksRef.current.onNewInvitation) {
+        callbacksRef.current.onNewInvitation(data);
+      }
+    };
 
-    if (callbacks.onNewInvitation) {
-      socket.on('new-invitation', callbacks.onNewInvitation);
-    }
+    socket.on('rsvp-updated', handleRSVPUpdate);
+    socket.on('rsvp-deleted', handleRSVPDeleted);
+    socket.on('invitation-updated', handleInvitationUpdate);
+    socket.on('collaboration-updated', handleCollaborationUpdate);
+    socket.on('new-invitation', handleNewInvitation);
 
-    // Cleanup
     return () => {
       if (eventId) {
         socket.emit('leave-event', eventId);
       }
-      socket.off('rsvp-updated');
-      socket.off('rsvp-deleted');
-      socket.off('invitation-updated');
-      socket.off('collaboration-updated');
-      socket.off('new-invitation');
+      socket.off('rsvp-updated', handleRSVPUpdate);
+      socket.off('rsvp-deleted', handleRSVPDeleted);
+      socket.off('invitation-updated', handleInvitationUpdate);
+      socket.off('collaboration-updated', handleCollaborationUpdate);
+      socket.off('new-invitation', handleNewInvitation);
       socket.disconnect();
     };
-  }, [eventId, callbacks]);
+  }, [eventId]);
 
   return socketRef.current;
 };

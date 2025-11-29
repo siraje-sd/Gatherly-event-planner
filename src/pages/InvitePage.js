@@ -9,12 +9,13 @@ import Logo from '../components/Logo/Logo';
 const InvitePage = () => {
   const { link } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rsvpStatus, setRsvpStatus] = useState('');
   const [rsvpComment, setRsvpComment] = useState('');
   const [rsvpGuests, setRsvpGuests] = useState(1);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadEvent();
@@ -22,6 +23,7 @@ const InvitePage = () => {
 
   const loadEvent = async () => {
     try {
+      setError('');
       const data = await eventService.getEventByInviteLink(link);
       setEvent(data.event);
       if (isAuthenticated) {
@@ -33,7 +35,7 @@ const InvitePage = () => {
         }
       }
     } catch (err) {
-      console.error('Failed to load event:', err);
+      setError(err.response?.data?.message || 'Failed to load event');
     } finally {
       setLoading(false);
     }
@@ -45,6 +47,7 @@ const InvitePage = () => {
       return;
     }
     try {
+      setError('');
       await rsvpService.createOrUpdateRSVP({
         eventId: event._id,
         status,
@@ -53,7 +56,7 @@ const InvitePage = () => {
       });
       setRsvpStatus(status);
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update RSVP');
+      setError(err.response?.data?.message || 'Failed to update RSVP');
     }
   };
 
@@ -100,6 +103,11 @@ const InvitePage = () => {
           )}
           
           <div className="p-8">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
             <div className="text-center mb-8">
               <Logo variant="icon" size="large" className="mx-auto mb-4" />
               <h1 className="text-4xl font-bold text-gray-900 mb-2">{event.title}</h1>
@@ -131,10 +139,10 @@ const InvitePage = () => {
             ) : (
               <div className="space-y-6">
                 <h2 className="text-2xl font-semibold text-center">Will you be attending?</h2>
-                <div className="flex justify-center space-x-4">
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
                   <button
                     onClick={() => handleRSVP('yes')}
-                    className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                    className={`px-6 sm:px-8 py-3 rounded-lg font-semibold transition-all ${
                       rsvpStatus === 'yes'
                         ? 'bg-green-600 text-white shadow-lg scale-105'
                         : 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -144,7 +152,7 @@ const InvitePage = () => {
                   </button>
                   <button
                     onClick={() => handleRSVP('maybe')}
-                    className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                    className={`px-6 sm:px-8 py-3 rounded-lg font-semibold transition-all ${
                       rsvpStatus === 'maybe'
                         ? 'bg-yellow-600 text-white shadow-lg scale-105'
                         : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
@@ -154,7 +162,7 @@ const InvitePage = () => {
                   </button>
                   <button
                     onClick={() => handleRSVP('no')}
-                    className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                    className={`px-6 sm:px-8 py-3 rounded-lg font-semibold transition-all ${
                       rsvpStatus === 'no'
                         ? 'bg-red-600 text-white shadow-lg scale-105'
                         : 'bg-red-100 text-red-700 hover:bg-red-200'

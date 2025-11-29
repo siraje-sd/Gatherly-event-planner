@@ -48,7 +48,7 @@ router.post('/', protect, async (req, res) => {
     const { eventId, userId, role } = req.body;
 
     if (!eventId || !userId || !role) {
-      return res.status(400).json({ message: 'Please provide event ID, user ID, and role' });
+      return res.status(400).json({ message: 'Please provide event ID, user ID or username, and role' });
     }
 
     if (!['editor', 'viewer'].includes(role)) {
@@ -65,25 +65,34 @@ router.post('/', protect, async (req, res) => {
       return res.status(403).json({ message: 'Only event owner can add collaborators' });
     }
 
+    // Find user by ID or username
+    let user;
+    if (userId.match(/^[0-9a-fA-F]{24}$/)) {
+      // MongoDB ObjectId format
+      user = await User.findById(userId);
+    } else {
+      // Assume it's a username
+      user = await User.findOne({ username: userId });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found. Please provide a valid user ID or username' });
+    }
+
     // Cannot add owner as collaborator
-    if (event.owner.toString() === userId) {
+    if (event.owner.toString() === user._id.toString()) {
       return res.status(400).json({ message: 'Event owner is already a collaborator' });
     }
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
     // Check if collaboration already exists
-    const existing = await Collaboration.findOne({ event: eventId, user: userId });
+    const existing = await Collaboration.findOne({ event: eventId, user: user._id });
     if (existing) {
       return res.status(400).json({ message: 'User is already a collaborator' });
     }
 
     const collaboration = await Collaboration.create({
       event: eventId,
-      user: userId,
+      user: user._id,
       role,
       invitedBy: req.user._id
     });
@@ -94,7 +103,7 @@ router.post('/', protect, async (req, res) => {
     // Emit socket event
     const io = req.app.get('io');
     if (io) {
-      io.to(`user-${userId}`).emit('collaboration-added', collaboration);
+      io.to(`user-${user._id}`).emit('collaboration-added', collaboration);
       io.to(`event-${eventId}`).emit('collaboration-updated', collaboration);
     }
 
