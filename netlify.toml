@@ -1,14 +1,13 @@
 [build]
-  # Build command for React app
   command = "npm run build"
-  # Directory where the built files will be located
   publish = "build"
-  # Node version to use during build
-  node_version = "18"
 
 [build.environment]
-  # Set NODE_ENV to production for optimized builds
   NODE_ENV = "production"
+  NODE_VERSION = "18.20.4"
+  REACT_APP_API_URL = "https://api.example.com/api"
+  REACT_APP_SOCKET_URL = "https://api.example.com"
+  REACT_APP_ASSET_BASE_URL = "https://api.example.com"
 
 # Redirect rules for Single Page Application (SPA)
 # This ensures all routes are handled by index.html

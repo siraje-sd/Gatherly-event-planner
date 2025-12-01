@@ -49,6 +49,10 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1"
   },
+  "engines": {
+    "node": ">=18.20.0",
+    "npm": ">=10.0.0"
+  },
   "overrides": {
     "rimraf": "^5.0.5",
     "glob": "^10.3.10",

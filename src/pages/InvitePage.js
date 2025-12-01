@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { eventService } from '../services/eventService';
 import { rsvpService } from '../services/rsvpService';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import Logo from '../components/Logo/Logo';
+import { buildAssetUrl } from '../utils/asset';
 
 const InvitePage = () => {
   const { link } = useParams();
@@ -17,11 +18,7 @@ const InvitePage = () => {
   const [rsvpGuests, setRsvpGuests] = useState(1);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadEvent();
-  }, [link]);
-
-  const loadEvent = async () => {
+  const loadEvent = useCallback(async () => {
     try {
       setError('');
       const data = await eventService.getEventByInviteLink(link);
@@ -39,7 +36,11 @@ const InvitePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [link, isAuthenticated]);
+
+  useEffect(() => {
+    loadEvent();
+  }, [loadEvent]);
 
   const handleRSVP = async (status) => {
     if (!isAuthenticated) {
@@ -96,7 +97,7 @@ const InvitePage = () => {
           {event.coverImage && (
             <div
               className="h-64 bg-cover bg-center relative"
-              style={{ backgroundImage: `url(${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${event.coverImage})` }}
+              style={{ backgroundImage: `url(${buildAssetUrl(event.coverImage)})` }}
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { eventService } from '../services/eventService';
@@ -7,6 +7,7 @@ import { invitationService } from '../services/invitationService';
 import { collaborationService } from '../services/collaborationService';
 import { useSocket } from '../hooks/useSocket';
 import { useAuth } from '../contexts/AuthContext';
+import { buildAssetUrl } from '../utils/asset';
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -24,28 +25,7 @@ const EventDetails = () => {
   const [rsvpComment, setRsvpComment] = useState('');
   const [rsvpGuests, setRsvpGuests] = useState(1);
 
-  useSocket(id, {
-    onRSVPUpdate: () => {
-      loadRSVPs();
-    },
-    onRSVPDeleted: () => {
-      loadRSVPs();
-    },
-  });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      await Promise.all([
-        loadEvent(),
-        loadRSVPs(),
-        loadInvitations(),
-        loadCollaborations()
-      ]);
-    };
-    fetchData();
-  }, [id]);
-
-  const loadEvent = async () => {
+  const loadEvent = useCallback(async () => {
     try {
       setError('');
       const data = await eventService.getEvent(id);
@@ -55,9 +35,9 @@ const EventDetails = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const loadRSVPs = async () => {
+  const loadRSVPs = useCallback(async () => {
     try {
       const data = await rsvpService.getEventRSVPs(id);
       setRsvps(data.rsvps || []);
@@ -71,23 +51,39 @@ const EventDetails = () => {
       }
     } catch (err) {
     }
-  };
+  }, [id]);
 
-  const loadInvitations = async () => {
+  const loadInvitations = useCallback(async () => {
     try {
       const data = await invitationService.getEventInvitations(id);
       setInvitations(data.invitations || []);
     } catch (err) {
     }
-  };
+  }, [id]);
 
-  const loadCollaborations = async () => {
+  const loadCollaborations = useCallback(async () => {
     try {
       const data = await collaborationService.getEventCollaborations(id);
       setCollaborations(data.collaborations || []);
     } catch (err) {
     }
-  };
+  }, [id]);
+
+  useSocket(id, {
+    onRSVPUpdate: () => {
+      loadRSVPs();
+    },
+    onRSVPDeleted: () => {
+      loadRSVPs();
+    },
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      await Promise.all([loadEvent(), loadRSVPs(), loadInvitations(), loadCollaborations()]);
+    };
+    fetchData();
+  }, [loadCollaborations, loadEvent, loadInvitations, loadRSVPs]);
 
   const handleRSVP = async (status) => {
     try {
@@ -144,7 +140,7 @@ const EventDetails = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm">
         {event.coverImage && (
-          <div className="h-64 bg-cover bg-center relative" style={{ backgroundImage: `url(${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${event.coverImage})` }}>
+          <div className="h-64 bg-cover bg-center relative" style={{ backgroundImage: `url(${buildAssetUrl(event.coverImage)})` }}>
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           </div>
         )}

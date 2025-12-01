@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { eventService } from '../services/eventService';
+import { buildAssetUrl } from '../utils/asset';
 
 const Dashboard = () => {
   const [events, setEvents] = useState([]);
@@ -95,7 +96,7 @@ const Dashboard = () => {
                 className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow"
               >
                 {event.coverImage && (
-                  <div className="h-48 bg-cover bg-center" style={{ backgroundImage: `url(${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${event.coverImage})` }}>
+                  <div className="h-48 bg-cover bg-center" style={{ backgroundImage: `url(${buildAssetUrl(event.coverImage)})` }}>
                     <div className="h-full bg-gradient-to-t from-black/50 to-transparent"></div>
                   </div>
                 )}
